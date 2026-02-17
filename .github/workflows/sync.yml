@@ -1,0 +1,60 @@
+# .github/workflows/sync.yml
+# Syncs the excalidraw skill from ryanquinn3's dotfiles repo into the root of this repo, so that it can be used in gemini-cli/claude.
+# Runs weekly (Sunday midnight UTC) and can also be triggered manually.
+
+name: Sync Upstream Skill
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Every Sunday at midnight UTC
+  workflow_dispatch:       # Allows manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-slim
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync from upstream
+        run: |
+          UPSTREAM_REPO="https://github.com/ryanquinn3/dotfiles"
+          UPSTREAM_PATH="claude/.claude/skills/excalidraw"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Clone the upstream repo
+          git clone --depth 1 --branch main "$UPSTREAM_REPO" /tmp/upstream
+
+          # Check if the source path exists
+          if [ ! -d "/tmp/upstream/$UPSTREAM_PATH" ]; then
+            echo "ERROR: Path '$UPSTREAM_PATH' not found in upstream repo"
+            exit 1
+          fi
+
+          # Remove existing synced files (so deletions upstream are reflected)
+          # This removes everything except .git and .github directories
+          find . -maxdepth 1 \
+            ! -name '.' \
+            ! -name '.git' \
+            ! -name '.github' \
+            -exec rm -rf {} +
+
+          # Copy the upstream subfolder contents into root
+          cp -a "/tmp/upstream/$UPSTREAM_PATH/." ./
+
+          # Check if anything actually changed
+          if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "No changes detected. Skipping commit."
+            exit 0
+          fi
+
+          # Stage and commit changes
+          git add -A
+          git commit -m "sync: update from upstream $(date -u +%Y-%m-%d)"
+
+          # Push
+          git push

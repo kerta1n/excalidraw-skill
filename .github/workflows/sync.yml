@@ -27,7 +27,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Clone the upstream repo
-          git clone --depth 1 --branch main "$UPSTREAM_REPO" /tmp/upstream
+          git clone --depth 1 --branch master "$UPSTREAM_REPO" /tmp/upstream
 
           # Check if the source path exists
           if [ ! -d "/tmp/upstream/$UPSTREAM_PATH" ]; then
